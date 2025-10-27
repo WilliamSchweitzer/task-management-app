@@ -2,6 +2,10 @@
 
 A full-stack task management application showcasing microservices architecture, infrastructure as code, and modern DevOps practices.
 
+Primary Learning Goals:
+- Infrastrucute setup and management via Terraform (AWS, Kong)
+- Backend development with Go, PostgreSQL (REST, JWT Authentication) 
+
 ## 🏗️ Architecture
 
 This project demonstrates a production-ready microservices architecture with:
@@ -141,8 +145,6 @@ terraform plan -var-file="environments/dev/terraform.tfvars"
 terraform apply -var-file="environments/dev/terraform.tfvars"
 ```
 
-See [docs/deployment.md](docs/deployment.md) for detailed deployment instructions.
-
 ## 📖 API Documentation
 
 ### Auth Service Endpoints
@@ -165,8 +167,6 @@ PUT    /tasks/:id       - Update task
 DELETE /tasks/:id       - Delete task
 PATCH  /tasks/:id/complete - Mark task as complete
 ```
-
-See [docs/api-spec.yaml](docs/api-spec.yaml) for complete OpenAPI specification.
 
 ## 🧪 Testing
 
@@ -307,10 +307,12 @@ MIT License - See [LICENSE](LICENSE) file for details
 
 - Website: [wschweitzer.com](https://wschweitzer.com)
 - GitHub: [@WilliamSchweitzer](https://github.com/WilliamSchweitzer)
-- LinkedIn: [Your LinkedIn]
 
 ## 🙏 Acknowledgments
 
+- Scaffolded with Claude AI
+- Functionality to be implemented alongside Claude AI
+- Infrastructure managed and setup by hand
 - Built as a portfolio project to demonstrate full-stack and DevOps skills
 - Architecture inspired by production microservices patterns
 - Designed with job interview showcasing in mind
