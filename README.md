@@ -33,8 +33,6 @@ Kong API Gateway (ECS Fargate)
     RDS PostgreSQL (Multi-schema)
 ```
 
-See [docs/architecture.md](docs/architecture.md) for detailed architecture documentation.
-
 ## 🛠️ Tech Stack
 
 ### Infrastructure
