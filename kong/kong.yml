@@ -1,0 +1,216 @@
+_format_version: "3.0"
+_transform: true
+
+# Services define the upstream API/microservice
+services:
+  # Auth Service
+  - name: auth-service
+    url: http://auth-service:8080
+    protocol: http
+    host: auth-service
+    port: 8080
+    path: /
+    retries: 5
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+
+    routes:
+      - name: auth-routes
+        paths:
+          - /auth
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+        
+        plugins:
+          # CORS Plugin
+          - name: cors
+            config:
+              origins:
+                - http://localhost:3000
+                - http://localhost:8000
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - PATCH
+                - OPTIONS
+              headers:
+                - Accept
+                - Authorization
+                - Content-Type
+                - X-CSRF-Token
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+          
+          # Rate Limiting Plugin
+          - name: rate-limiting
+            config:
+              minute: 100
+              hour: 1000
+              policy: local
+
+          # Request Transformer (optional)
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                  - X-Service: auth-service
+
+  # Task Service
+  - name: task-service
+    url: http://task-service:8081
+    protocol: http
+    host: task-service
+    port: 8081
+    path: /
+    retries: 5
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+
+    routes:
+      - name: task-routes
+        paths:
+          - /tasks
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+        
+        plugins:
+          # JWT Authentication Plugin (validate tokens from auth service)
+          - name: jwt
+            config:
+              uri_param_names:
+                - jwt
+              cookie_names: []
+              claims_to_verify:
+                - exp
+              key_claim_name: iss
+              secret_is_base64: false
+              anonymous: null
+              run_on_preflight: true
+              maximum_expiration: 0
+              header_names:
+                - authorization
+          
+          # CORS Plugin
+          - name: cors
+            config:
+              origins:
+                - http://localhost:3000
+                - http://localhost:8000
+              methods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - PATCH
+                - OPTIONS
+              headers:
+                - Accept
+                - Authorization
+                - Content-Type
+                - X-CSRF-Token
+                - X-User-ID
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+          
+          # Rate Limiting Plugin (per consumer)
+          - name: rate-limiting
+            config:
+              minute: 100
+              hour: 5000
+              policy: local
+
+          # Request Transformer (add user_id from JWT to header)
+          - name: request-transformer
+            config:
+              add:
+                headers:
+                  - X-Service: task-service
+
+# JWT Consumers (this will be managed dynamically in production)
+consumers:
+  - username: default-user
+    custom_id: default-user-id
+
+# Global plugins (apply to all routes)
+plugins:
+  # Logging Plugin
+  - name: file-log
+    config:
+      path: /tmp/kong.log
+      reopen: true
+
+  # Request/Response Logging
+  - name: http-log
+    config:
+      http_endpoint: http://localhost:8001/logs
+      method: POST
+      timeout: 10000
+      keepalive: 60000
+
+# Upstreams (optional, for load balancing)
+upstreams:
+  - name: auth-upstream
+    algorithm: round-robin
+    hash_on: none
+    hash_fallback: none
+    healthchecks:
+      active:
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+          timeouts: 3
+      passive:
+        healthy:
+          successes: 2
+        unhealthy:
+          http_failures: 3
+          timeouts: 3
+    targets:
+      - target: auth-service:8080
+        weight: 100
+
+  - name: task-upstream
+    algorithm: round-robin
+    hash_on: none
+    hash_fallback: none
+    healthchecks:
+      active:
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+          timeouts: 3
+      passive:
+        healthy:
+          successes: 2
+        unhealthy:
+          http_failures: 3
+          timeouts: 3
+    targets:
+      - target: task-service:8081
+        weight: 100
