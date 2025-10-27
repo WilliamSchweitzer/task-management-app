@@ -2,7 +2,8 @@
 
 A full-stack task management application showcasing microservices architecture, infrastructure as code, and modern DevOps practices.
 
-Primary Learning Goals:
+## 📚 Primary Learning Goals
+
 - Infrastrucute setup and management via Terraform (AWS, Kong)
 - Backend development with Go, PostgreSQL (REST, JWT Authentication) 
 
