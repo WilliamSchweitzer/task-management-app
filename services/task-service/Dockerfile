@@ -28,7 +28,7 @@ WORKDIR /root/
 COPY --from=builder /app/main .
 
 # Copy migrations (if needed)
-COPY --from=builder /app/migrations ./migrations
+# COPY --from=builder /app/migrations ./migrations
 
 # Expose port
 EXPOSE 8081
