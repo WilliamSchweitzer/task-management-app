@@ -11,6 +11,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+
+	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
 )
 
 func main() {
@@ -19,16 +21,14 @@ func main() {
 		log.Println("No .env file found, using environment variables")
 	}
 
+	// Connect to database
+	if err := database.Connect(); err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+	defer database.Close()
+
 	// Get configuration from environment
 	port := getEnv("AUTH_SERVICE_PORT", "8080")
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	//dbPassword := getEnv("DB_PASSWORD", "postgres")
-	dbName := getEnv("DB_NAME", "taskmanagement")
-
-	// Database connection will be implemented here
-	log.Printf("Database config: host=%s port=%s user=%s dbname=%s", dbHost, dbPort, dbUser, dbName)
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -52,7 +52,7 @@ func main() {
 
 	// Routes
 	r.Get("/health", healthHandler)
-	
+
 	// Auth routes (to be implemented)
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/signup", signupHandler)
