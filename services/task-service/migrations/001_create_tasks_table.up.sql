@@ -1,12 +1,9 @@
--- Enable UUID extension (if not already enabled)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Create tasks schema
 CREATE SCHEMA IF NOT EXISTS tasks;
 
 -- Create tasks table
 CREATE TABLE tasks.tasks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
