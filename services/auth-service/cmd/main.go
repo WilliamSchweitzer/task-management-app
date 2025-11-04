@@ -13,11 +13,12 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
+	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/handlers"
 )
 
 func main() {
 	// Load environment variables
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load("../../.env"); err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
 
@@ -55,11 +56,11 @@ func main() {
 
 	// Auth routes (to be implemented)
 	r.Route("/auth", func(r chi.Router) {
-		r.Post("/signup", signupHandler)
-		r.Post("/login", loginHandler)
-		r.Post("/refresh", refreshHandler)
-		r.Get("/verify", verifyHandler)
-		r.Post("/logout", logoutHandler)
+		r.Post("/signup", handlers.Signup)
+		r.Post("/login", handlers.Login)
+		r.Post("/refresh", handlers.RefreshToken)
+		r.Get("/verify", handlers.VerifyToken)
+		r.Post("/logout", handlers.Logout)
 	})
 
 	// Start server
@@ -75,37 +76,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"healthy","service":"auth-service"}`))
-}
-
-// Placeholder handlers (to be implemented)
-func signupHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Signup endpoint - to be implemented"}`))
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Login endpoint - to be implemented"}`))
-}
-
-func refreshHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Refresh token endpoint - to be implemented"}`))
-}
-
-func verifyHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Verify token endpoint - to be implemented"}`))
-}
-
-func logoutHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Logout endpoint - to be implemented"}`))
 }
 
 // Helper function to get environment variables with default values
