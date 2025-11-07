@@ -54,7 +54,7 @@ func main() {
 	// Routes
 	r.Get("/health", healthHandler)
 
-	// Auth routes (to be implemented)
+	// Auth routes
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/signup", handlers.Signup)
 		r.Post("/login", handlers.Login)

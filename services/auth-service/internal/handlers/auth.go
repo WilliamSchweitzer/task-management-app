@@ -76,7 +76,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken, err := service.GenerateRefreshToken(user.ID, user.Email)
+	refreshToken, refreshTokenExpiry, err := service.GenerateRefreshToken(user.ID, user.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
 		return
@@ -88,6 +88,22 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		TokenType:    "Bearer",
 		ExpiresIn:    900, // 15 minutes
 		User:         user,
+	}
+
+	// Hash refresh token
+	hashedRefreshToken, err := service.HashToken(refreshToken)
+	if err != nil {
+		http.Error(w, "Failed to hash refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	// Store the refresh token to auth.refresh_tokens
+
+	err = service.StoreRefreshToken(user.ID, hashedRefreshToken, refreshTokenExpiry)
+
+	if err != nil {
+		http.Error(w, "Failed to create refresh token", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -129,7 +145,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken, err := service.GenerateRefreshToken(user.ID, user.Email)
+	refreshToken, _, err := service.GenerateRefreshToken(user.ID, user.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
 		return
