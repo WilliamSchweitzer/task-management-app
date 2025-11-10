@@ -320,7 +320,14 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken, err := service.LookupRefreshToken(req.RefreshToken)
+	// Hash refresh token
+	hashedRefreshToken, err := service.HashToken(req.RefreshToken)
+	if err != nil {
+		http.Error(w, "Failed to hash refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	refreshToken, err := service.LookupRefreshToken(hashedRefreshToken)
 	if err != nil {
 		http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
 		return
