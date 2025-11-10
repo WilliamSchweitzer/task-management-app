@@ -26,6 +26,7 @@ type LogoutRequest struct {
 }
 
 type RefreshTokenRequest struct {
+	Email        string `json:"email"`
 	RefreshToken string `json:"refresh_token"`
 }
 
@@ -204,6 +205,11 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := models.ValidateEmail(req.Email); err != nil {
+		http.Error(w, "Email is invalid", http.StatusBadRequest)
+		return
+	}
+
 	if req.RefreshToken == "" {
 		http.Error(w, "Refresh token is required", http.StatusBadRequest)
 		return
@@ -235,21 +241,20 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate new tokens
-	accessToken, err := service.GenerateAccessToken(cfg, refreshToken.UserID, "")
+	accessToken, err := service.GenerateAccessToken(cfg, refreshToken.UserID, req.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate access token", http.StatusInternalServerError)
 		return
 	}
 
-	newRefreshToken, newRefreshTokenExpiry, err := service.GenerateRefreshToken(cfg, refreshToken.UserID, "")
+	newRefreshToken, newRefreshTokenExpiry, err := service.GenerateRefreshToken(cfg, refreshToken.UserID, req.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
 		return
 	}
 
-	// Revoke old refresh token TODO: Implement service revoke method
-	refreshToken.Revoke()
-	if err := database.DB.Save(refreshToken).Error; err != nil {
+	// Revoke old refresh token
+	if err := service.RevokeRefreshToken(refreshToken); err != nil {
 		http.Error(w, "Failed to revoke old refresh token", http.StatusInternalServerError)
 		return
 	}
@@ -312,6 +317,7 @@ func VerifyToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
