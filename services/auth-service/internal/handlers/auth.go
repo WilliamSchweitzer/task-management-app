@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/models"
@@ -221,11 +220,16 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 	// Lookup refresh token in database
 	refreshToken, err = service.LookupRefreshToken(hashedRefreshToken)
 	if err != nil {
-		http.Error(w, "Invalid or expired refresh token", http.StatusInternalServerError)
+		http.Error(w, "Invalid refresh token", http.StatusInternalServerError)
 		return
 	}
 
-	if refreshToken.RevokedAt != nil {
+	if refreshToken.IsExpired() {
+		http.Error(w, "Refresh token has expired", http.StatusUnauthorized)
+		return
+	}
+
+	if refreshToken.IsRevoked() {
 		http.Error(w, "Refresh token is already revoked", http.StatusUnauthorized)
 		return
 	}
@@ -243,8 +247,9 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Revoke old refresh token
-	if err := database.DB.Model(&refreshToken).Update("revoked_at", time.Now()).Error; err != nil {
+	// Revoke old refresh token TODO: Implement service revoke method
+	refreshToken.Revoke()
+	if err := database.DB.Save(refreshToken).Error; err != nil {
 		http.Error(w, "Failed to revoke old refresh token", http.StatusInternalServerError)
 		return
 	}

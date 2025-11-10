@@ -124,9 +124,8 @@ func StoreRefreshToken(userID uuid.UUID, tokenHash string, expiresAt time.Time) 
 func LookupRefreshToken(tokenHash string) (*models.RefreshToken, error) {
 	var refreshToken models.RefreshToken
 
-	err := database.DB.Where("token_hash = ? AND expires_at > ?",
+	err := database.DB.Where("token_hash = ?",
 		tokenHash,
-		time.Now(),
 	).First(&refreshToken).Error
 
 	if err != nil {

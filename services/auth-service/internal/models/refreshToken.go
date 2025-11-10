@@ -18,3 +18,20 @@ type RefreshToken struct {
 func (RefreshToken) TableName() string {
 	return "auth.refresh_tokens"
 }
+
+func (r *RefreshToken) Revoke() {
+	now := time.Now()
+	r.RevokedAt = &now
+}
+
+func (r *RefreshToken) IsRevoked() bool {
+	return r.RevokedAt != nil
+}
+
+func (r *RefreshToken) IsExpired() bool {
+	return r.ExpiresAt.Before(time.Now())
+}
+
+func (r *RefreshToken) IsValid() bool {
+	return !r.IsRevoked() && !r.IsExpired()
+}
