@@ -13,16 +13,35 @@ import (
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/models"
 )
 
+type JWTConfig struct {
+	Secret              string
+	Issuer              string
+	AccessTokenDuration time.Duration
+}
+
+var DefaultJWTConfig = JWTConfig{
+	Secret:              string(os.Getenv("JWT_SECRET")),
+	Issuer:              "task-management-auth",
+	AccessTokenDuration: 15 * time.Minute,
+}
+
 type Claims struct {
 	UserID uuid.UUID `json:"user_id"`
 	Email  string    `json:"email"`
 	jwt.RegisteredClaims
 }
 
-func GenerateAccessToken(userID uuid.UUID, email string) (string, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
+func GenerateAccessToken(cfg JWTConfig, userID uuid.UUID, email string) (string, error) {
+	if cfg.Secret == "" {
 		return "", fmt.Errorf("JWT_SECRET is not set")
+	}
+
+	if err := models.ValidateEmail(email); err != nil {
+		return "", err
+	}
+
+	if userID == uuid.Nil {
+		return "", fmt.Errorf("userID cannot be nil")
 	}
 
 	expiryStr := os.Getenv("ACCESS_TOKEN_EXPIRY")
@@ -46,13 +65,20 @@ func GenerateAccessToken(userID uuid.UUID, email string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
+	return token.SignedString([]byte(cfg.Secret))
 }
 
-func GenerateRefreshToken(userID uuid.UUID, email string) (string, time.Time, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
+func GenerateRefreshToken(cfg JWTConfig, userID uuid.UUID, email string) (string, time.Time, error) {
+	if cfg.Secret == "" {
 		return "", time.Now(), fmt.Errorf("JWT_SECRET is not set")
+	}
+
+	if err := models.ValidateEmail(email); err != nil {
+		return "", time.Now(), err
+	}
+
+	if userID == uuid.Nil {
+		return "", time.Now(), fmt.Errorf("userID cannot be nil")
 	}
 
 	expiryStr := os.Getenv("REFRESH_TOKEN_EXPIRY")
@@ -76,7 +102,7 @@ func GenerateRefreshToken(userID uuid.UUID, email string) (string, time.Time, er
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(secret))
+	tokenString, err := token.SignedString([]byte(cfg.Secret))
 
 	return tokenString, claims.ExpiresAt.Time, err
 }
@@ -121,9 +147,8 @@ func RevokeRefreshToken(refreshToken *models.RefreshToken) error {
 	return nil
 }
 
-func ValidateToken(tokenStr string) (*Claims, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
+func ValidateToken(cfg JWTConfig, tokenStr string) (*Claims, error) {
+	if cfg.Secret == "" {
 		return nil, fmt.Errorf("JWT_SECRET is not set")
 	}
 
@@ -131,7 +156,7 @@ func ValidateToken(tokenStr string) (*Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(secret), nil
+		return []byte(cfg.Secret), nil
 	})
 
 	if err != nil {

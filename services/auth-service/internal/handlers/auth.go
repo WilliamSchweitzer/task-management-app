@@ -45,6 +45,8 @@ type RefreshTokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
+var cfg service.JWTConfig = service.DefaultJWTConfig
+
 func Signup(w http.ResponseWriter, r *http.Request) {
 	var req SignupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -86,13 +88,13 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate tokens
-	accessToken, err := service.GenerateAccessToken(user.ID, user.Email)
+	accessToken, err := service.GenerateAccessToken(cfg, user.ID, user.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate access token", http.StatusInternalServerError)
 		return
 	}
 
-	refreshToken, refreshTokenExpiry, err := service.GenerateRefreshToken(user.ID, user.Email)
+	refreshToken, refreshTokenExpiry, err := service.GenerateRefreshToken(cfg, user.ID, user.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
 		return
@@ -155,13 +157,13 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate tokens
-	accessToken, err := service.GenerateAccessToken(user.ID, user.Email)
+	accessToken, err := service.GenerateAccessToken(cfg, user.ID, user.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate access token", http.StatusInternalServerError)
 		return
 	}
 
-	refreshToken, refreshTokenExpiry, err := service.GenerateRefreshToken(user.ID, user.Email)
+	refreshToken, refreshTokenExpiry, err := service.GenerateRefreshToken(cfg, user.ID, user.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
 		return
@@ -229,13 +231,13 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate new tokens
-	accessToken, err := service.GenerateAccessToken(refreshToken.UserID, "")
+	accessToken, err := service.GenerateAccessToken(cfg, refreshToken.UserID, "")
 	if err != nil {
 		http.Error(w, "Failed to generate access token", http.StatusInternalServerError)
 		return
 	}
 
-	newRefreshToken, newRefreshTokenExpiry, err := service.GenerateRefreshToken(refreshToken.UserID, "")
+	newRefreshToken, newRefreshTokenExpiry, err := service.GenerateRefreshToken(cfg, refreshToken.UserID, "")
 	if err != nil {
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
 		return
@@ -291,7 +293,7 @@ func VerifyToken(w http.ResponseWriter, r *http.Request) {
 	tokenString := parts[1]
 
 	// Validate token
-	claims, err := service.ValidateToken(tokenString)
+	claims, err := service.ValidateToken(cfg, tokenString)
 	if err != nil {
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
