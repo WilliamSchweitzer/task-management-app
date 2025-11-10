@@ -95,6 +95,32 @@ func StoreRefreshToken(userID uuid.UUID, tokenHash string, expiresAt time.Time) 
 	return nil
 }
 
+func LookupRefreshToken(tokenHash string) (*models.RefreshToken, error) {
+	var refreshToken models.RefreshToken
+
+	err := database.DB.Where("token_hash = ? AND expires_at > ?",
+		tokenHash,
+		time.Now(),
+	).First(&refreshToken).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &refreshToken, err
+}
+
+func RevokeRefreshToken(refreshToken *models.RefreshToken) error {
+	now := time.Now()
+	refreshToken.RevokedAt = &now
+
+	if err := database.DB.Save(refreshToken).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ValidateToken(tokenStr string) (*Claims, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
