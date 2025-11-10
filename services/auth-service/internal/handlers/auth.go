@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/models"
@@ -21,12 +22,23 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 type AuthResponse struct {
 	AccessToken  string      `json:"access_token"`
 	RefreshToken string      `json:"refresh_token"`
 	TokenType    string      `json:"token_type"`
 	ExpiresIn    int         `json:"expires_in"`
 	User         models.User `json:"user"`
+}
+
+type RefreshTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
 }
 
 func Signup(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +157,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken, _, err := service.GenerateRefreshToken(user.ID, user.Email)
+	refreshToken, refreshTokenExpiry, err := service.GenerateRefreshToken(user.ID, user.Email)
 	if err != nil {
 		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
 		return
@@ -159,15 +171,102 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		User:         user,
 	}
 
+	// Hash refresh token
+	hashedRefreshToken, err := service.HashToken(refreshToken)
+	if err != nil {
+		http.Error(w, "Failed to hash refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	// Store the refresh token to auth.refresh_tokens
+	err = service.StoreRefreshToken(user.ID, hashedRefreshToken, refreshTokenExpiry)
+
+	if err != nil {
+		http.Error(w, "Failed to create refresh token", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
 func RefreshToken(w http.ResponseWriter, r *http.Request) {
+	// Accept refresh token from request body
+	var req RefreshTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.RefreshToken == "" {
+		http.Error(w, "Refresh token is required", http.StatusBadRequest)
+		return
+	}
+
+	// Hash refresh token
+	hashedRefreshToken, err := service.HashToken(req.RefreshToken)
+	if err != nil {
+		http.Error(w, "Failed to hash refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	var refreshToken models.RefreshToken
+	// Lookup refresh token in database
+	if err := database.DB.Where("token_hash = ?", hashedRefreshToken).First(&refreshToken); err != nil {
+		http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	// If valid, generate new access token and refresh token (Not expired, not revoked)
+	if refreshToken.RevokedAt != nil || refreshToken.ExpiresAt.Before(time.Now()) {
+		http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	// Generate new tokens
+	accessToken, err := service.GenerateAccessToken(refreshToken.UserID, "")
+	if err != nil {
+		http.Error(w, "Failed to generate access token", http.StatusInternalServerError)
+		return
+	}
+
+	newRefreshToken, newRefreshTokenExpiry, err := service.GenerateRefreshToken(refreshToken.UserID, "")
+	if err != nil {
+		http.Error(w, "Failed to generate refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	// Revoke old refresh token
+	if err := database.DB.Model(&refreshToken).Update("revoked_at", time.Now()).Error; err != nil {
+		http.Error(w, "Failed to revoke old refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	// Hash new refresh token
+	hashedNewRefreshToken, err := service.HashToken(newRefreshToken)
+	if err != nil {
+		http.Error(w, "Failed to hash new refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	// Store new refresh token
+	err = service.StoreRefreshToken(refreshToken.UserID, hashedNewRefreshToken, newRefreshTokenExpiry)
+	if err != nil {
+		http.Error(w, "Failed to store new refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	resp := RefreshTokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: newRefreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900, // 15 minutes
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Refresh token endpoint - to be implemented"}`))
+	json.NewEncoder(w).Encode(resp)
 }
 
 func VerifyToken(w http.ResponseWriter, r *http.Request) {
