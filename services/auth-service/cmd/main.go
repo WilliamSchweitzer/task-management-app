@@ -11,24 +11,25 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+
+	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
+	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/handlers"
 )
 
 func main() {
 	// Load environment variables
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load("../../.env"); err != nil {
 		log.Println("No .env file found, using environment variables")
 	}
 
+	// Connect to database
+	if err := database.Connect(); err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+	defer database.Close()
+
 	// Get configuration from environment
 	port := getEnv("AUTH_SERVICE_PORT", "8080")
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	//dbPassword := getEnv("DB_PASSWORD", "postgres")
-	dbName := getEnv("DB_NAME", "taskmanagement")
-
-	// Database connection will be implemented here
-	log.Printf("Database config: host=%s port=%s user=%s dbname=%s", dbHost, dbPort, dbUser, dbName)
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -52,14 +53,14 @@ func main() {
 
 	// Routes
 	r.Get("/health", healthHandler)
-	
-	// Auth routes (to be implemented)
+
+	// Auth routes
 	r.Route("/auth", func(r chi.Router) {
-		r.Post("/signup", signupHandler)
-		r.Post("/login", loginHandler)
-		r.Post("/refresh", refreshHandler)
-		r.Get("/verify", verifyHandler)
-		r.Post("/logout", logoutHandler)
+		r.Post("/signup", handlers.Signup)
+		r.Post("/login", handlers.Login)
+		r.Post("/refresh", handlers.RefreshToken)
+		r.Get("/verify", handlers.VerifyToken)
+		r.Post("/logout", handlers.Logout)
 	})
 
 	// Start server
@@ -75,37 +76,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"healthy","service":"auth-service"}`))
-}
-
-// Placeholder handlers (to be implemented)
-func signupHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Signup endpoint - to be implemented"}`))
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Login endpoint - to be implemented"}`))
-}
-
-func refreshHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Refresh token endpoint - to be implemented"}`))
-}
-
-func verifyHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Verify token endpoint - to be implemented"}`))
-}
-
-func logoutHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Logout endpoint - to be implemented"}`))
 }
 
 // Helper function to get environment variables with default values
