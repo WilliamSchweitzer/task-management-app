@@ -22,6 +22,10 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
@@ -211,16 +215,16 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var refreshToken models.RefreshToken
+	var refreshToken *models.RefreshToken
 	// Lookup refresh token in database
-	if err := database.DB.Where("token_hash = ?", hashedRefreshToken).First(&refreshToken); err != nil {
-		http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+	refreshToken, err = service.LookupRefreshToken(hashedRefreshToken)
+	if err != nil {
+		http.Error(w, "Invalid or expired refresh token", http.StatusInternalServerError)
 		return
 	}
 
-	// If valid, generate new access token and refresh token (Not expired, not revoked)
-	if refreshToken.RevokedAt != nil || refreshToken.ExpiresAt.Before(time.Now()) {
-		http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+	if refreshToken.RevokedAt != nil {
+		http.Error(w, "Refresh token is already revoked", http.StatusUnauthorized)
 		return
 	}
 
@@ -305,8 +309,33 @@ func VerifyToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func Logout(w http.ResponseWriter, r *http.Request) {
-	// Placeholder for logout logic (e.g., invalidate refresh token)
+	var req LogoutRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if req.RefreshToken == "" {
+		http.Error(w, "Refresh token is required", http.StatusBadRequest)
+		return
+	}
+
+	refreshToken, err := service.LookupRefreshToken(req.RefreshToken)
+	if err != nil {
+		http.Error(w, "Invalid or expired refresh token", http.StatusUnauthorized)
+		return
+	}
+
+	if refreshToken.RevokedAt != nil {
+		http.Error(w, "Already logged out", http.StatusUnauthorized)
+		return
+	}
+
+	service.RevokeRefreshToken(refreshToken)
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Logout endpoint - to be implemented"}`))
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Logged out successfully",
+	})
 }
