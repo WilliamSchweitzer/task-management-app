@@ -13,7 +13,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
-	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/handlers"
+	handlers "github.com/williamschweitzer/task-management-app/services/auth-service/internal/handler"
 )
 
 func main() {

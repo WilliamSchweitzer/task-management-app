@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
-	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/models"
+	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/model"
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/service"
 )
 
@@ -31,11 +31,11 @@ type RefreshTokenRequest struct {
 }
 
 type AuthResponse struct {
-	AccessToken  string      `json:"access_token"`
-	RefreshToken string      `json:"refresh_token"`
-	TokenType    string      `json:"token_type"`
-	ExpiresIn    int         `json:"expires_in"`
-	User         models.User `json:"user"`
+	AccessToken  string     `json:"access_token"`
+	RefreshToken string     `json:"refresh_token"`
+	TokenType    string     `json:"token_type"`
+	ExpiresIn    int        `json:"expires_in"`
+	User         model.User `json:"user"`
 }
 
 type RefreshTokenResponse struct {
@@ -61,7 +61,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user already exists
-	var existingUser models.User
+	var existingUser model.User
 	result := database.DB.Where("email = ?", strings.ToLower(req.Email)).First(&existingUser)
 	if result.Error == nil {
 		http.Error(w, "User with this email already exists", http.StatusConflict)
@@ -76,7 +76,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user
-	user := models.User{
+	user := model.User{
 		Email:        strings.ToLower(req.Email),
 		PasswordHash: hashedPassword,
 		Name:         req.Name,
@@ -143,7 +143,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find user
-	var user models.User
+	var user model.User
 	result := database.DB.Where("email = ?", strings.ToLower(req.Email)).First(&user)
 	if result.Error != nil {
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
@@ -205,7 +205,7 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := models.ValidateEmail(req.Email); err != nil {
+	if err := model.ValidateEmail(req.Email); err != nil {
 		http.Error(w, "Email is invalid", http.StatusBadRequest)
 		return
 	}
@@ -222,7 +222,7 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var refreshToken *models.RefreshToken
+	var refreshToken *model.RefreshToken
 	// Lookup refresh token in database
 	refreshToken, err = service.LookupRefreshToken(hashedRefreshToken)
 	if err != nil {

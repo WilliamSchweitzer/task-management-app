@@ -1,5 +1,5 @@
 // models/refresh_token_test.go
-package models
+package model
 
 import (
 	"encoding/json"

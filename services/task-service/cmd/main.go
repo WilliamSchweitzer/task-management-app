@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	"github.com/williamschweitzer/task-management-app/services/task-service/internal/database"
 )
 
 func main() {
@@ -19,16 +20,14 @@ func main() {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	// Get configuration from environment
-	port := getEnv("TASK_SERVICE_PORT", "8081")
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	// dbPassword := getEnv("DB_PASSWORD", "postgres")
-	dbName := getEnv("DB_NAME", "taskmanagement")
+	// Connect to database
+	if err := database.Connect(); err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+	defer database.Close()
 
-	// Database connection will be implemented here
-	log.Printf("Database config: host=%s port=%s user=%s dbname=%s", dbHost, dbPort, dbUser, dbName)
+	// Get port configuration from environment
+	port := getEnv("TASK_SERVICE_PORT", "8090")
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -52,14 +51,14 @@ func main() {
 
 	// Routes
 	r.Get("/health", healthHandler)
-	
+
 	// Task routes (to be implemented)
 	r.Route("/tasks", func(r chi.Router) {
-		r.Get("/", listTasksHandler)           // GET /tasks
-		r.Post("/", createTaskHandler)          // POST /tasks
-		r.Get("/{taskID}", getTaskHandler)      // GET /tasks/:id
-		r.Put("/{taskID}", updateTaskHandler)   // PUT /tasks/:id
-		r.Delete("/{taskID}", deleteTaskHandler) // DELETE /tasks/:id
+		r.Get("/", listTasksHandler)                       // GET /tasks
+		r.Post("/", createTaskHandler)                     // POST /tasks
+		r.Get("/{taskID}", getTaskHandler)                 // GET /tasks/:id
+		r.Put("/{taskID}", updateTaskHandler)              // PUT /tasks/:id
+		r.Delete("/{taskID}", deleteTaskHandler)           // DELETE /tasks/:id
 		r.Patch("/{taskID}/complete", completeTaskHandler) // PATCH /tasks/:id/complete
 	})
 

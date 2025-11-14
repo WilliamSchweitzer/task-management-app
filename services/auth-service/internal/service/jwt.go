@@ -10,7 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
-	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/models"
+	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/model"
 )
 
 type JWTConfig struct {
@@ -36,7 +36,7 @@ func GenerateAccessToken(cfg JWTConfig, userID uuid.UUID, email string) (string,
 		return "", fmt.Errorf("JWT_SECRET is not set")
 	}
 
-	if err := models.ValidateEmail(email); err != nil {
+	if err := model.ValidateEmail(email); err != nil {
 		return "", err
 	}
 
@@ -73,7 +73,7 @@ func GenerateRefreshToken(cfg JWTConfig, userID uuid.UUID, email string) (string
 		return "", time.Now(), fmt.Errorf("JWT_SECRET is not set")
 	}
 
-	if err := models.ValidateEmail(email); err != nil {
+	if err := model.ValidateEmail(email); err != nil {
 		return "", time.Now(), err
 	}
 
@@ -108,7 +108,7 @@ func GenerateRefreshToken(cfg JWTConfig, userID uuid.UUID, email string) (string
 }
 
 func StoreRefreshToken(userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
-	refreshTokenEntry := models.RefreshToken{
+	refreshTokenEntry := model.RefreshToken{
 		UserID:    userID,
 		TokenHash: tokenHash,
 		ExpiresAt: expiresAt,
@@ -121,8 +121,8 @@ func StoreRefreshToken(userID uuid.UUID, tokenHash string, expiresAt time.Time) 
 	return nil
 }
 
-func LookupRefreshToken(tokenHash string) (*models.RefreshToken, error) {
-	var refreshToken models.RefreshToken
+func LookupRefreshToken(tokenHash string) (*model.RefreshToken, error) {
+	var refreshToken model.RefreshToken
 
 	err := database.DB.Where("token_hash = ?",
 		tokenHash,
@@ -135,7 +135,7 @@ func LookupRefreshToken(tokenHash string) (*models.RefreshToken, error) {
 	return &refreshToken, err
 }
 
-func RevokeRefreshToken(refreshToken *models.RefreshToken) error {
+func RevokeRefreshToken(refreshToken *model.RefreshToken) error {
 	now := time.Now()
 	refreshToken.RevokedAt = &now
 
