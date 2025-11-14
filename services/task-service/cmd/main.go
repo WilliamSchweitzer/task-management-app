@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 	"github.com/williamschweitzer/task-management-app/services/task-service/internal/database"
+	"github.com/williamschweitzer/task-management-app/services/task-service/internal/handler"
 )
 
 func main() {
@@ -54,12 +55,12 @@ func main() {
 
 	// Task routes (to be implemented)
 	r.Route("/tasks", func(r chi.Router) {
-		r.Get("/", listTasksHandler)                       // GET /tasks
-		r.Post("/", createTaskHandler)                     // POST /tasks
-		r.Get("/{taskID}", getTaskHandler)                 // GET /tasks/:id
-		r.Put("/{taskID}", updateTaskHandler)              // PUT /tasks/:id
-		r.Delete("/{taskID}", deleteTaskHandler)           // DELETE /tasks/:id
-		r.Patch("/{taskID}/complete", completeTaskHandler) // PATCH /tasks/:id/complete
+		r.Get("/", handler.ListTasks)                       // GET /tasks
+		r.Post("/", handler.CreateTask)                     // POST /tasks
+		r.Get("/{taskID}", handler.GetTask)                 // GET /tasks/:id
+		r.Put("/{taskID}", handler.UpdateTask)              // PUT /tasks/:id
+		r.Delete("/{taskID}", handler.DeleteTask)           // DELETE /tasks/:id
+		r.Patch("/{taskID}/complete", handler.CompleteTask) // PATCH /tasks/:id/complete
 	})
 
 	// Start server
@@ -75,43 +76,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"healthy","service":"task-service"}`))
-}
-
-// Placeholder handlers (to be implemented)
-func listTasksHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"List tasks endpoint - to be implemented"}`))
-}
-
-func createTaskHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Create task endpoint - to be implemented"}`))
-}
-
-func getTaskHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Get task endpoint - to be implemented"}`))
-}
-
-func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Update task endpoint - to be implemented"}`))
-}
-
-func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Delete task endpoint - to be implemented"}`))
-}
-
-func completeTaskHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Complete task endpoint - to be implemented"}`))
 }
 
 // Helper function to get environment variables with default values
