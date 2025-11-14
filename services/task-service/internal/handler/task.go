@@ -1,10 +1,24 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/williamschweitzer/task-management-app/services/task-service/internal/database"
+	"github.com/williamschweitzer/task-management-app/services/task-service/internal/model"
 )
+
+type CreateTaskRequest struct {
+	// UserID      uuid.UUID  `json:"user_id"` - Kong provides UserID
+	Title       string     `json:"title"`
+	Descrption  *string    `json:"description"`
+	Status      string     `json:"status"`
+	Priority    *string    `json:"priority"`
+	DueDate     *time.Time `json:"due_date"`
+	CompletedAt *time.Time `json:"completed_at"`
+}
 
 // CreateTask Request struct
 
@@ -29,21 +43,36 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode request and create request object
+	var req CreateTaskRequest
 
-	// Validate access token and refresh token using VerifyToken endpoint from auth service? Or is there better way to do this?
+	// Decode request and create request object
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Create Task object
+	task := model.Task{
+		UserID:      userID,
+		Title:       req.Title,
+		Description: req.Descrption,
+		Status:      req.Status,
+		Priority:    req.Priority,
+		DueDate:     req.DueDate,
+		CompletedAt: req.CompletedAt,
+	}
 
 	// Validate task input
-
-	// Check if matching UUIDs?
-
-	// Create task object
+	if err := task.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 
 	// Store task in tasks.tasks service.StoreTask
+	database.CreateTask(task)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Create task endpoint - to be implemented"}`))
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message":"Task created successfully!"}`))
 }
 
 func GetTask(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,4 +22,42 @@ type Task struct {
 
 func (Task) TableName() string {
 	return "tasks.tasks"
+}
+
+func (t Task) Validate() error {
+	if t.Title == "" {
+		return errors.New("title field is required")
+	}
+
+	if len(t.Title) > 255 {
+		return errors.New("title field length must be 255 characters or less")
+	}
+
+	if t.Status == "" {
+		return errors.New("title field is required")
+	}
+
+	if len(t.Status) > 50 {
+		return errors.New("status field length must be 50 characters or less")
+	}
+
+	if t.Priority != nil && (*t.Priority != "low" && *t.Priority != "medium" && *t.Priority != "high") {
+		*t.Priority = "medium"
+	}
+
+	if t.Status != "todo" && t.Status != "in-progress" && t.Status != "done" {
+		t.Status = "todo"
+	}
+
+	if t.DueDate != nil {
+		if (*t.DueDate).Before(time.Now()) {
+			return errors.New("due date cannot be in the past")
+		}
+	}
+
+	if (t.Status == "done" && t.CompletedAt == nil) || (t.Status != "done" && t.CompletedAt != nil) {
+		return errors.New("status must be done and completedAt must be set")
+	}
+
+	return nil
 }
