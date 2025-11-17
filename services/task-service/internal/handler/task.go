@@ -20,7 +20,21 @@ type CreateTaskRequest struct {
 	CompletedAt *time.Time `json:"completed_at"`
 }
 
-// CreateTask Request struct
+type GetTaskRequest struct {
+	ID uuid.UUID `json:"id"`
+}
+
+type GetTaskResponse struct {
+	UserID      uuid.UUID  `json:"user_id"`
+	Title       string     `json:"title"`
+	Description *string    `json:"description,omitempty"`
+	Status      string     `json:"status"`
+	Priority    *string    `json:"priority,omitempty"`
+	DueDate     *time.Time `json:"due_date,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
 
 func ListTasks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -76,9 +90,45 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetTask(w http.ResponseWriter, r *http.Request) {
+	// Get Tasks by UUID from DB
+	var req GetTaskRequest
+
+	// Decode Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Validate ID foramt
+	if err := uuid.Validate(req.ID.String()); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Fetch Task from DB
+	task, err := database.GetTask(req.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Create response
+	resp := GetTaskResponse{
+		UserID:      task.UserID,
+		Title:       task.Title,
+		Description: task.Description,
+		Status:      task.Status,
+		Priority:    task.Priority,
+		DueDate:     task.DueDate,
+		CompletedAt: task.CompletedAt,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
+	}
+
+	// Return Task data
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Get task endpoint - to be implemented"}`))
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
 func UpdateTask(w http.ResponseWriter, r *http.Request) {
