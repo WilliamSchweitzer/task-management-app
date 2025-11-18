@@ -34,7 +34,7 @@ func (t Task) Validate() error {
 	}
 
 	if t.Status == "" {
-		return errors.New("title field is required")
+		return errors.New("status field is required")
 	}
 
 	if len(t.Status) > 50 {

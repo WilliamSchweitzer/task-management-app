@@ -3,28 +3,35 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/williamschweitzer/task-management-app/services/task-service/internal/database"
 	"github.com/williamschweitzer/task-management-app/services/task-service/internal/model"
 )
 
 type CreateTaskRequest struct {
-	// UserID      uuid.UUID  `json:"user_id"` - Kong provides UserID
 	Title       string     `json:"title"`
-	Descrption  *string    `json:"description"`
+	Description *string    `json:"description"`
 	Status      string     `json:"status"`
 	Priority    *string    `json:"priority"`
 	DueDate     *time.Time `json:"due_date"`
 	CompletedAt *time.Time `json:"completed_at"`
 }
 
-type GetTaskRequest struct {
-	ID uuid.UUID `json:"id"`
+type UpdateTaskRequest struct {
+	Title       *string    `json:"title,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	Status      *string    `json:"status,omitempty"`
+	Priority    *string    `json:"priority,omitempty"`
+	DueDate     *time.Time `json:"due_date,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
 }
 
 type GetTaskResponse struct {
+	ID          uuid.UUID  `json:"id"`
 	UserID      uuid.UUID  `json:"user_id"`
 	Title       string     `json:"title"`
 	Description *string    `json:"description,omitempty"`
@@ -69,7 +76,7 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 	task := model.Task{
 		UserID:      userID,
 		Title:       req.Title,
-		Description: req.Descrption,
+		Description: req.Description,
 		Status:      req.Status,
 		Priority:    req.Priority,
 		DueDate:     req.DueDate,
@@ -82,38 +89,38 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Store task in tasks.tasks service.StoreTask
-	database.CreateTask(task)
+	if err := database.CreateTask(task); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(`{"message":"Task created successfully!"}`))
 }
 
 func GetTask(w http.ResponseWriter, r *http.Request) {
-	// Get Tasks by UUID from DB
-	var req GetTaskRequest
-
-	// Decode Request
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		return
-	}
-
-	// Validate ID foramt
-	if err := uuid.Validate(req.ID.String()); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// Get task ID from URL path
+	taskIDStr := chi.URLParam(r, "taskID")
+	taskID, err := uuid.Parse(taskIDStr)
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
 		return
 	}
 
 	// Fetch Task from DB
-	task, err := database.GetTask(req.ID)
+	task, err := database.GetTask(taskID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		if err.Error() == "task not found" {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to fetch task", http.StatusInternalServerError)
 		return
 	}
 
 	// Create response
 	resp := GetTaskResponse{
+		ID:          task.ID, // Don't forget this!
 		UserID:      task.UserID,
 		Title:       task.Title,
 		Description: task.Description,
@@ -132,19 +139,109 @@ func GetTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateTask(w http.ResponseWriter, r *http.Request) {
+	var req UpdateTaskRequest
+
+	// Decode Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Get task ID from URL
+	taskIDStr := chi.URLParam(r, "id")
+	taskID, err := uuid.Parse(taskIDStr)
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	// Build updates map with only provided fields
+	updates := map[string]interface{}{
+		"updated_at": time.Now(),
+	}
+
+	if req.Title != nil {
+		updates["title"] = *req.Title
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if req.Priority != nil {
+		updates["priority"] = *req.Priority
+	}
+	if req.DueDate != nil {
+		updates["due_date"] = *req.DueDate
+	}
+	if req.CompletedAt != nil {
+		updates["completed_at"] = *req.CompletedAt
+	}
+
+	// Update in database
+	task, err := database.UpdateTask(taskID, updates)
+	if err != nil {
+		if err.Error() == "failed to update task: task not found" || strings.Contains(err.Error(), "task not found") {
+			http.Error(w, "Task not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to update task", http.StatusInternalServerError)
+		return
+	}
+
+	// Return updated task
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Update task endpoint - to be implemented"}`))
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(task)
 }
 
 func DeleteTask(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Delete task endpoint - to be implemented"}`))
+	// Get task ID from URL
+	taskIDStr := chi.URLParam(r, "id")
+	taskID, err := uuid.Parse(taskIDStr)
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	// Delete from database
+	err = database.DeleteTask(taskID)
+	if err != nil {
+		if strings.Contains(err.Error(), "task not found") {
+			http.Error(w, "Task not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to delete task", http.StatusInternalServerError)
+		return
+	}
+
+	// Return 204 No Content on success
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func CompleteTask(w http.ResponseWriter, r *http.Request) {
+	// Get task ID from URL
+	taskIDStr := chi.URLParam(r, "id")
+	taskID, err := uuid.Parse(taskIDStr)
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	// Mark task as completed
+	task, err := database.CompleteTask(taskID)
+	if err != nil {
+		if strings.Contains(err.Error(), "task not found") {
+			http.Error(w, "Task not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to complete task", http.StatusInternalServerError)
+		return
+	}
+
+	// Return completed task
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"Complete task endpoint - to be implemented"}`))
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(task)
 }
