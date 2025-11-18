@@ -13,7 +13,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/database"
-	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/handlers"
+	"github.com/williamschweitzer/task-management-app/services/auth-service/internal/handler"
 )
 
 func main() {
@@ -56,11 +56,11 @@ func main() {
 
 	// Auth routes
 	r.Route("/auth", func(r chi.Router) {
-		r.Post("/signup", handlers.Signup)
-		r.Post("/login", handlers.Login)
-		r.Post("/refresh", handlers.RefreshToken)
-		r.Get("/verify", handlers.VerifyToken)
-		r.Post("/logout", handlers.Logout)
+		r.Post("/signup", handler.Signup)
+		r.Post("/login", handler.Login)
+		r.Post("/refresh", handler.RefreshToken)
+		r.Get("/verify", handler.VerifyToken)
+		r.Post("/logout", handler.Logout)
 	})
 
 	// Start server
