@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/williamschweitzer/task-management-app/services/task-service/internal/database"
 	"github.com/williamschweitzer/task-management-app/services/task-service/internal/model"
 )
 
