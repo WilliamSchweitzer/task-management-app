@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+# Navigate to terraform directory to get outputs
+cd "$(dirname "$0")/../terraform"
+
+NLB_DNS=$(terraform output -raw nlb_dns_name)
+KONG_ADMIN_URL="http://$NLB_DNS:8001"
+
+echo "🔧 Configuring Kong routes..."
+
+# Wait for Kong to be ready
+echo "⏳ Waiting for Kong Admin API..."
+until curl -s $KONG_ADMIN_URL/status > /dev/null 2>&1; do
+  echo "Waiting for Kong..."
+  sleep 5
+done
+
+# Add auth-service
+echo "Adding auth-service route..."
+curl -s -X POST $KONG_ADMIN_URL/services/ \
+  --data "name=auth-service" \
+  --data "url=http://auth-service.taskmanagement.local:8080"
+
+curl -s -X POST $KONG_ADMIN_URL/services/auth-service/routes \
+  --data "paths[]=/auth" \
+  --data "paths[]=/api/auth" \
+  --data "strip_path=false"
+
+# Add task-service
+echo "Adding task-service route..."
+curl -s -X POST $KONG_ADMIN_URL/services/ \
+  --data "name=task-service" \
+  --data "url=http://task-service.taskmanagement.local:8081"
+
+curl -s -X POST $KONG_ADMIN_URL/services/task-service/routes \
+  --data "paths[]=/tasks" \
+  --data "paths[]=/api/tasks" \
+  --data "strip_path=false"
+
+echo "✅ Kong routes configured!"
