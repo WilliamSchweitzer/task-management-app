@@ -415,8 +415,20 @@ resource "aws_ecs_task_definition" "auth_service" {
           value = "postgres"
         },
         {
+          name  = "DB_SSLMODE"
+          value = "require"
+        },
+        {
           name  = "PORT"
           value = "8080"
+        },
+        {
+          name  = "ACCESS_TOKEN_EXPIRY"
+          value = "15m"
+        },
+        {
+          name  = "REFRESH_TOKEN_EXPIRY"
+          value = "168h"
         }
       ]
 
@@ -480,6 +492,10 @@ resource "aws_ecs_task_definition" "task_service" {
         {
           name  = "DB_NAME"
           value = "postgres"
+        },
+        {
+          name  = "DB_SSLMODE"
+          value = "require"
         },
         {
           name  = "PORT"
