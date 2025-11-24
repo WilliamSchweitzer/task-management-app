@@ -13,14 +13,14 @@ echo "🗄️  Running database migrations..."
 
 # Run task-service migrations in order
 cd "$SCRIPT_DIR/../services/task-service/migrations"
-for file in *_up.sql; do
+for file in *.up.sql; do
   echo "Running $file..."
   psql -h $RDS_HOST -p $RDS_PORT -U $RDS_USER postgres -f "$file"
 done
 
 # Run auth-service migrations in order
-cd "$SCRIPT_DIR/../services/auth-service/migrations"
-for file in *_up.sql; do
+cd "$SCRIPT_DIR/../../auth-service/migrations"
+for file in *.up.sql; do
   echo "Running $file..."
   psql -h $RDS_HOST -p $RDS_PORT -U $RDS_USER postgres -f "$file"
 done
