@@ -39,10 +39,7 @@ Route 53 (DNS)
     ↓
 Application Load Balancer (ALB)
     ↓
-Kong API Gateway (ECS Fargate)
-    ├─ JWT Authentication Plugin
-    ├─ Rate Limiting Plugin
-    └─ CORS Plugin
+Kong API Gateway (ECS Fargate - Routing Only)
     ↓
     ├─→ Auth Service (Go, ECS Fargate)
     └─→ Task Service (Go, ECS Fargate)
@@ -69,10 +66,6 @@ Kong API Gateway (ECS Fargate)
 
 ### API Gateway
 - **Kong** - API Gateway
-  - JWT Plugin
-  - Rate Limiting Plugin
-  - CORS Plugin
-  - Request Transformer Plugin
 
 ### Frontend
 - **React 18** - UI framework
@@ -204,15 +197,12 @@ npm test
 ```
 task-management-app/
 ├── terraform/              # Infrastructure as Code
-│   ├── modules/           # Reusable Terraform modules
-│   └── environments/      # Environment-specific configs
 ├── services/              # Backend microservices
 │   ├── auth-service/     # Authentication service
 │   └── task-service/     # Task management service
 ├── frontend/             # React frontend application
 ├── kong/                 # Kong API Gateway configuration
 ├── scripts/              # Utility scripts
-├── docs/                 # Documentation
 └── .github/workflows/    # CI/CD pipelines
 ```
 
@@ -268,7 +258,6 @@ make dev-frontend     # Run frontend locally
 
 ## 🌟 Key Features
 
-### For Interviews
 This project demonstrates:
 - ✅ Microservices architecture
 - ✅ Infrastructure as Code (Terraform)
@@ -285,12 +274,11 @@ This project demonstrates:
 - Clean architecture with separation of concerns
 - Proper error handling and logging
 - Database migrations for version control
-- Environment-based configuration
 - Comprehensive testing
-- API documentation with OpenAPI/Swagger
 
 ## 🚧 Roadmap
 
+- [ ] API documentation with OpenAPI/Swagger
 - [ ] Add OAuth 2.0 login (Google, GitHub)
 - [ ] Implement WebSocket for real-time updates
 - [ ] Add task categories and tags
