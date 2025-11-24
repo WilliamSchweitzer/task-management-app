@@ -20,8 +20,20 @@ func Connect() error {
 	dbname := os.Getenv("DB_NAME")
 	sslmode := os.Getenv("DB_SSLMODE")
 
+	// Validate required fields
+	if host == "" || port == "" || user == "" || password == "" || dbname == "" {
+		return fmt.Errorf("missing required database environment variables")
+	}
+
+	// Default to require for RDS connections
+	if sslmode == "" {
+		sslmode = "require"
+	}
+
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		host, port, user, password, dbname, sslmode)
+
+	log.Printf("Connecting to database at %s:%s (sslmode=%s)", host, port, sslmode)
 
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
@@ -38,7 +50,6 @@ func Connect() error {
 
 func Close() error {
 	sqlDB, err := DB.DB()
-
 	if err != nil {
 		return err
 	}
