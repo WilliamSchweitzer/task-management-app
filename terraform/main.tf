@@ -69,13 +69,13 @@ resource "aws_security_group" "rds" {
     security_groups = [aws_security_group.ecs_tasks.id]  # Reference ECS security group
   }
 
-  # Public access not needed
-  # ingress {
-  #   from_port   = 5432
-  #   to_port     = 5432
-  #   protocol    = "tcp"
-  #   cidr_blocks = ["0.0.0.0/0"]
-  # }
+  # Public access IS needed for testing/development purposes
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   egress {
     from_port   = 0
