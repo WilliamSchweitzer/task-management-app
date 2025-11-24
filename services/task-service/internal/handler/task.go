@@ -98,6 +98,41 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"message":"Task created successfully!"}`))
 }
 
+func GetTasks(w http.ResponseWriter, r *http.Request) {
+	// Fetch Tasks from DB
+	tasks, err := database.GetTasks()
+	if err != nil {
+		if err.Error() == "no tasks found in database" {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to fetch task", http.StatusInternalServerError)
+		return
+	}
+
+	// Create response
+	resp := make([]GetTaskResponse, len(tasks))
+	for i, task := range tasks {
+		resp[i] = GetTaskResponse{
+			ID:          task.ID,
+			UserID:      task.UserID,
+			Title:       task.Title,
+			Description: task.Description,
+			Status:      task.Status,
+			Priority:    task.Priority,
+			DueDate:     task.DueDate,
+			CompletedAt: task.CompletedAt,
+			CreatedAt:   task.CreatedAt,
+			UpdatedAt:   task.UpdatedAt,
+		}
+	}
+
+	// Return Task data
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
 func GetTask(w http.ResponseWriter, r *http.Request) {
 	// Get task ID from URL path
 	taskIDStr := chi.URLParam(r, "taskID")

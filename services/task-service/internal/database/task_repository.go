@@ -18,6 +18,16 @@ func CreateTask(task model.Task) error {
 	return nil
 }
 
+func GetTasks() ([]*model.Task, error) {
+	var tasks []*model.Task
+
+	if err := DB.Find(&tasks); err != nil {
+		return nil, fmt.Errorf("no tasks found in database")
+	}
+
+	return tasks, nil
+}
+
 func GetTask(taskID uuid.UUID) (*model.Task, error) {
 	var task model.Task
 	if err := DB.First(&task, taskID).Error; err != nil {
