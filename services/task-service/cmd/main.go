@@ -53,7 +53,7 @@ func main() {
 	// Routes
 	r.Get("/health", healthHandler)
 
-	// Task routes (to be implemented)
+	// Task routes
 	r.Route("/tasks", func(r chi.Router) {
 		r.Get("/", handler.ListTasks)                       // GET /tasks
 		r.Post("/", handler.CreateTask)                     // POST /tasks
