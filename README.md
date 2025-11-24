@@ -7,6 +7,18 @@ A full-stack task management application showcasing microservices architecture, 
 - Infrastrucute setup and management via Terraform (AWS, Kong)
 - Backend development with Go, PostgreSQL (REST, JWT Authentication) 
 
+## Kong Note
+
+**Current State (Development):**
+Microservices are currently publicly accessible for easier development and testing.
+
+**Production Recommendation:**
+In a production environment, auth-service and task-service should be:
+1. Deployed in private subnets with no public IPs
+2. Accessible only through Kong Gateway
+3. Security groups restricting traffic to Kong only
+4. Using VPC endpoints for AWS services
+
 ## 🏗️ Architecture
 
 This project demonstrates a production-ready microservices architecture with:
