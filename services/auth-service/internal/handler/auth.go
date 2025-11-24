@@ -45,8 +45,6 @@ type RefreshTokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
-var cfg service.JWTConfig = service.DefaultJWTConfig
-
 func Signup(w http.ResponseWriter, r *http.Request) {
 	var req SignupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -87,6 +85,9 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get JWT config at runtime
+	cfg := service.GetJWTConfig()
+
 	// Generate tokens
 	accessToken, err := service.GenerateAccessToken(cfg, user.ID, user.Email)
 	if err != nil {
@@ -100,14 +101,6 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    900, // 15 minutes
-		User:         user,
-	}
-
 	// Hash refresh token
 	hashedRefreshToken, err := service.HashToken(refreshToken)
 	if err != nil {
@@ -115,13 +108,19 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Store the refresh token to auth.refresh_tokens
-
+	// Store the refresh token
 	err = service.StoreRefreshToken(user.ID, hashedRefreshToken, refreshTokenExpiry)
-
 	if err != nil {
-		http.Error(w, "Failed to create refresh token", http.StatusInternalServerError)
+		http.Error(w, "Failed to store refresh token", http.StatusInternalServerError)
 		return
+	}
+
+	resp := AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900, // 15 minutes
+		User:         user,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -156,6 +155,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get JWT config at runtime
+	cfg := service.GetJWTConfig()
+
 	// Generate tokens
 	accessToken, err := service.GenerateAccessToken(cfg, user.ID, user.Email)
 	if err != nil {
@@ -169,14 +171,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    900, // 15 minutes
-		User:         user,
-	}
-
 	// Hash refresh token
 	hashedRefreshToken, err := service.HashToken(refreshToken)
 	if err != nil {
@@ -186,10 +180,17 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	// Store the refresh token to auth.refresh_tokens
 	err = service.StoreRefreshToken(user.ID, hashedRefreshToken, refreshTokenExpiry)
-
 	if err != nil {
 		http.Error(w, "Failed to create refresh token", http.StatusInternalServerError)
 		return
+	}
+
+	response := AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900, // 15 minutes
+		User:         user,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -240,6 +241,9 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get JWT config at runtime
+	cfg := service.GetJWTConfig()
+
 	// Generate new tokens
 	accessToken, err := service.GenerateAccessToken(cfg, refreshToken.UserID, req.Email)
 	if err != nil {
@@ -281,7 +285,7 @@ func RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
+	w.WriteHeader(http.StatusOK) // Changed from StatusNotImplemented
 	json.NewEncoder(w).Encode(resp)
 }
 
@@ -301,6 +305,9 @@ func VerifyToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tokenString := parts[1]
+
+	// Get JWT config at runtime
+	cfg := service.GetJWTConfig()
 
 	// Validate token
 	claims, err := service.ValidateToken(cfg, tokenString)

@@ -25,6 +25,22 @@ var DefaultJWTConfig = JWTConfig{
 	AccessTokenDuration: 15 * time.Minute,
 }
 
+// GetJWTConfig reads config from environment at runtime
+func GetJWTConfig() JWTConfig {
+	secret := os.Getenv("JWT_SECRET")
+	fmt.Printf("DEBUG: JWT_SECRET length: %d\n", len(secret))
+	if secret == "" {
+		// This is critical - log or panic if JWT_SECRET is not set
+		panic("JWT_SECRET environment variable is not set")
+	}
+
+	return JWTConfig{
+		Secret:              secret,
+		Issuer:              "task-management-auth",
+		AccessTokenDuration: 15 * time.Minute,
+	}
+}
+
 type Claims struct {
 	UserID uuid.UUID `json:"user_id"`
 	Email  string    `json:"email"`
@@ -60,7 +76,7 @@ func GenerateAccessToken(cfg JWTConfig, userID uuid.UUID, email string) (string,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "task-management-auth",
+			Issuer:    cfg.Issuer,
 		},
 	}
 
@@ -70,20 +86,20 @@ func GenerateAccessToken(cfg JWTConfig, userID uuid.UUID, email string) (string,
 
 func GenerateRefreshToken(cfg JWTConfig, userID uuid.UUID, email string) (string, time.Time, error) {
 	if cfg.Secret == "" {
-		return "", time.Now(), fmt.Errorf("JWT_SECRET is not set")
+		return "", time.Time{}, fmt.Errorf("JWT_SECRET is not set")
 	}
 
 	if err := model.ValidateEmail(email); err != nil {
-		return "", time.Now(), err
+		return "", time.Time{}, err
 	}
 
 	if userID == uuid.Nil {
-		return "", time.Now(), fmt.Errorf("userID cannot be nil")
+		return "", time.Time{}, fmt.Errorf("userID cannot be nil")
 	}
 
 	expiryStr := os.Getenv("REFRESH_TOKEN_EXPIRY")
 	if expiryStr == "" {
-		expiryStr = "7d"
+		expiryStr = "168h" // 7 days - use hours notation
 	}
 
 	expiry, err := time.ParseDuration(expiryStr)
@@ -97,14 +113,17 @@ func GenerateRefreshToken(cfg JWTConfig, userID uuid.UUID, email string) (string
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "task-management-auth",
+			Issuer:    cfg.Issuer,
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(cfg.Secret))
+	if err != nil {
+		return "", time.Time{}, err
+	}
 
-	return tokenString, claims.ExpiresAt.Time, err
+	return tokenString, claims.ExpiresAt.Time, nil
 }
 
 func StoreRefreshToken(userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
@@ -124,15 +143,12 @@ func StoreRefreshToken(userID uuid.UUID, tokenHash string, expiresAt time.Time) 
 func LookupRefreshToken(tokenHash string) (*model.RefreshToken, error) {
 	var refreshToken model.RefreshToken
 
-	err := database.DB.Where("token_hash = ?",
-		tokenHash,
-	).First(&refreshToken).Error
-
+	err := database.DB.Where("token_hash = ?", tokenHash).First(&refreshToken).Error
 	if err != nil {
 		return nil, err
 	}
 
-	return &refreshToken, err
+	return &refreshToken, nil
 }
 
 func RevokeRefreshToken(refreshToken *model.RefreshToken) error {

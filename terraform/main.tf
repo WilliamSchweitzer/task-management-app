@@ -1,144 +1,100 @@
 terraform {
-  required_version = ">= 1.5.0"
-
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.5"
-    }
+  }
+  
+  backend "s3" {
+    bucket         = "task-management-s3-bucket"
+    key            = "prod/terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "task-management-state"
   }
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = var.region
+}
 
-  default_tags {
-    tags = {
-      Project     = var.project_name
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-      Owner       = var.owner
-    }
+data "aws_availability_zones" "available" {}
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.16.0"  # Changed from 2.77.0 to 5.16.0
+
+  name                 = "taskmanagement"
+  cidr                 = "10.0.0.0/16"
+  azs                  = data.aws_availability_zones.available.names
+  public_subnets       = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+}
+
+resource "aws_db_subnet_group" "taskmanagement" {
+  name       = "taskmanagement"
+  subnet_ids = module.vpc.public_subnets
+
+  tags = {
+    Name = "Taskmanagement"
   }
 }
 
-# Data sources
-data "aws_caller_identity" "current" {}
-data "aws_availability_zones" "available" {
-  state = "available"
+resource "aws_db_instance" "taskmanagement" {
+  identifier             = "taskmanagement"
+  instance_class         = "db.t3.micro"
+  allocated_storage      = 5
+  engine                 = "postgres"
+  engine_version         = "14"
+  username               = "postgres"
+  password               = var.db_password
+  db_subnet_group_name   = aws_db_subnet_group.taskmanagement.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  parameter_group_name   = aws_db_parameter_group.taskmanagement.name
+  publicly_accessible    = true
+  skip_final_snapshot    = true
 }
 
-# Networking Module
-module "networking" {
-  source = "./modules/networking"
+resource "aws_security_group" "rds" {
+  name   = "taskmanagement_rds"
+  vpc_id = module.vpc.vpc_id
 
-  project_name        = var.project_name
-  environment         = var.environment
-  vpc_cidr            = var.vpc_cidr
-  availability_zones  = slice(data.aws_availability_zones.available.names, 0, 2)
-  public_subnet_cidrs = var.public_subnet_cidrs
-  private_subnet_cidrs = var.private_subnet_cidrs
+  # Allow from ECS tasks
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs_tasks.id]  # Reference ECS security group
+  }
+
+  # Public access IS needed for testing/development purposes
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "taskmanagement_rds"
+  }
 }
 
-# Database Module
-module "database" {
-  source = "./modules/database"
+resource "aws_db_parameter_group" "taskmanagement" {
+  name   = "taskmanagement"
+  family = "postgres14"
 
-  project_name           = var.project_name
-  environment            = var.environment
-  vpc_id                 = module.networking.vpc_id
-  private_subnet_ids     = module.networking.private_subnet_ids
-  db_security_group_id   = module.networking.db_security_group_id
-  db_instance_class      = var.db_instance_class
-  db_allocated_storage   = var.db_allocated_storage
-  db_engine_version      = var.db_engine_version
-  db_name                = var.db_name
-  db_username            = var.db_username
-  db_password            = var.db_password
-}
-
-# ECR Module (Container Registry)
-module "ecr" {
-  source = "./modules/ecr"
-
-  project_name = var.project_name
-  environment  = var.environment
-}
-
-# ECS Module
-module "ecs" {
-  source = "./modules/ecs"
-
-  project_name                = var.project_name
-  environment                 = var.environment
-  vpc_id                      = module.networking.vpc_id
-  public_subnet_ids           = module.networking.public_subnet_ids
-  ecs_security_group_id       = module.networking.ecs_security_group_id
-  
-  # Service configurations
-  auth_service_image          = var.auth_service_image
-  task_service_image          = var.task_service_image
-  kong_image                  = var.kong_image
-  
-  auth_service_port           = var.auth_service_port
-  task_service_port           = var.task_service_port
-  kong_proxy_port             = var.kong_proxy_port
-  
-  auth_service_cpu            = var.auth_service_cpu
-  auth_service_memory         = var.auth_service_memory
-  task_service_cpu            = var.task_service_cpu
-  task_service_memory         = var.task_service_memory
-  kong_cpu                    = var.kong_cpu
-  kong_memory                 = var.kong_memory
-  
-  # Database connection
-  db_host                     = module.database.db_endpoint
-  db_port                     = module.database.db_port
-  db_name                     = var.db_name
-  db_username                 = var.db_username
-  db_password                 = var.db_password
-  
-  # JWT secret
-  jwt_secret                  = var.jwt_secret
-}
-
-# Application Load Balancer Module
-module "alb" {
-  source = "./modules/alb"
-
-  project_name          = var.project_name
-  environment           = var.environment
-  vpc_id                = module.networking.vpc_id
-  public_subnet_ids     = module.networking.public_subnet_ids
-  alb_security_group_id = module.networking.alb_security_group_id
-  
-  # Target groups from ECS module
-  kong_target_group_arn = module.ecs.kong_target_group_arn
-  
-  # Certificate ARN (if using HTTPS)
-  certificate_arn       = var.certificate_arn
-}
-
-# Monitoring Module
-module "monitoring" {
-  source = "./modules/monitoring"
-
-  project_name = var.project_name
-  environment  = var.environment
-  
-  # ECS resources to monitor
-  ecs_cluster_name     = module.ecs.cluster_name
-  auth_service_name    = module.ecs.auth_service_name
-  task_service_name    = module.ecs.task_service_name
-  kong_service_name    = module.ecs.kong_service_name
-  
-  # ALB to monitor
-  alb_arn_suffix       = module.alb.alb_arn_suffix
-  
-  # Database to monitor
-  db_instance_id       = module.database.db_instance_id
+  parameter {
+    name  = "log_connections"
+    value = "1"
+  }
 }
