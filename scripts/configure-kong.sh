@@ -47,7 +47,7 @@ if [ -n "$EXISTING_CORS" ]; then
   curl -s -X DELETE $KONG_ADMIN_URL/plugins/$EXISTING_CORS
 fi
 
-CORS_ORIGINS=${CORS_ORIGINS:-'["http://localhost:3000", "https://task-management.wschweitzer.com"]'}
+CORS_ORIGINS=${CORS_ORIGINS:-'["http://localhost:3000", "https://api.task-management.wschweitzer.com"]'}
 
 curl -s -X POST $KONG_ADMIN_URL/plugins \
   -H "Content-Type: application/json" \

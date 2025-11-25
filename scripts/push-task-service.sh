@@ -12,7 +12,7 @@ aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --
 
 # Push task-service
 echo "📦 Building task-service..."
-cd task-service
+cd ../services/task-service
 docker build -t task-service:$VERSION .
 docker tag task-service:$VERSION $ECR_REGISTRY/task-service:$VERSION
 docker push $ECR_REGISTRY/task-service:$VERSION
