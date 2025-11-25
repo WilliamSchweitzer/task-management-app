@@ -30,6 +30,7 @@ export function TaskBoard() {
     fetchTasks,
     updateTaskStatus,
     isModalOpen,
+    openModal,
     clearError,
   } = useTaskStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -42,11 +43,6 @@ export function TaskBoard() {
       },
     })
   );
-
-  // Fetch tasks on mount
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
 
   // Get tasks for each column
   const getTasksByStatus = (status: TaskStatus) => {
@@ -90,6 +86,22 @@ export function TaskBoard() {
           <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
           <p className="text-gray-500 dark:text-gray-400">Loading tasks...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!isLoading && !error && tasks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <p className="text-gray-500 dark:text-gray-400 text-lg mb-4">
+          No tasks to display
+        </p>
+        <button
+          onClick={() => openModal("create")}
+          className="text-blue-600 hover:text-blue-700 underline"
+        >
+          Create your first task
+        </button>
       </div>
     );
   }
