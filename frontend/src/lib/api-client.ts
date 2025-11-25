@@ -46,13 +46,23 @@ class ApiClient {
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) return false;
 
+    const user = localStorage.getItem(STORAGE_KEYS.USER);
+    const userObj = user ? JSON.parse(user) : null;
+
+    if (!userObj?.email) {
+      this.clearTokens();
+      return false;
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}${API_CONFIG.AUTH.REFRESH}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        body: JSON.stringify({ 
+          email: userObj.email,
+          refresh_token: refreshToken }),
       });
 
       if (!response.ok) {
@@ -61,8 +71,10 @@ class ApiClient {
       }
 
       const data = await response.json();
+      const expiresAt = Math.floor(Date.now() / 1000) + data.expires_in;
       localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, data.access_token);
-      localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, data.expires_at.toString());
+      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, data.refresh_token);
+      localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiresAt.toString());
       return true;
     } catch {
       this.clearTokens();
