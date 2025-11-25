@@ -11,6 +11,7 @@ interface TaskState {
   error: string | null;
   selectedTask: Task | null;
   isModalOpen: boolean;
+  defaultStatus: TaskStatus | null;
   modalMode: 'create' | 'edit' | 'view';
   
   // Actions
@@ -22,7 +23,7 @@ interface TaskState {
   completeTask: (id: string) => Promise<void>;
   
   // Modal actions
-  openModal: (mode: 'create' | 'edit' | 'view', task?: Task) => void;
+  openModal: (mode: 'create' | 'edit' | 'view', task?: Task | null, defaultStatus?: TaskStatus) => void;
   closeModal: () => void;
   setSelectedTask: (task: Task | null) => void;
   
@@ -40,6 +41,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   selectedTask: null,
   isModalOpen: false,
   modalMode: 'create',
+  defaultStatus: null,
 
   fetchTasks: async () => {
     set({ isLoading: true, error: null });
@@ -211,18 +213,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  openModal: (mode: 'create' | 'edit' | 'view', task?: Task) => {
+  openModal: (mode, task = null, defaultStatus) => {
     set({
       isModalOpen: true,
       modalMode: mode,
-      selectedTask: task || null,
+      selectedTask: task,
+      defaultStatus: defaultStatus || null, // Store the default status
     });
   },
-
+  
   closeModal: () => {
     set({
       isModalOpen: false,
       selectedTask: null,
+      modalMode: 'create',
+      defaultStatus: null, // Clear it when closing
     });
   },
 
