@@ -39,17 +39,22 @@ export interface SignupCredentials {
 export interface AuthTokens {
   access_token: string;
   refresh_token: string;
-  expires_at: number;
+  expires_in: number;
 }
 
 export interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
   user: User;
-  tokens: AuthTokens;
 }
 
 export interface RefreshTokenResponse {
   access_token: string;
-  expires_at: number;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
 }
 
 // Task API types
@@ -67,6 +72,7 @@ export interface UpdateTaskRequest {
   status?: TaskStatus;
   priority?: TaskPriority;
   due_date?: string;
+  completed_at?: string;
 }
 
 // API response types
