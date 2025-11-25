@@ -24,14 +24,7 @@ export function TaskColumn({ status, tasks }: TaskColumnProps) {
 
   const handleAddTask = () => {
     // Open modal with default status set to this column
-    openModal('create', {
-      id: '',
-      user_id: '',
-      title: '',
-      status: status,
-      created_at: '',
-      updated_at: '',
-    });
+    openModal('create', null, status);
   };
 
   return (

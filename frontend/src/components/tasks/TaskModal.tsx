@@ -32,6 +32,7 @@ export function TaskModal() {
     isModalOpen,
     modalMode,
     selectedTask,
+    defaultStatus, 
     closeModal,
     createTask,
     updateTask,
@@ -60,16 +61,17 @@ export function TaskModal() {
       });
       setIsEditing(modalMode === 'edit');
     } else {
+      // Creating a new task, use defaultStatus from store if available
       setFormData({
         title: '',
         description: '',
-        status: selectedTask?.status || 'todo',
+        status: defaultStatus || 'todo', // Use the default status from store
         priority: 'medium',
         due_date: '',
       });
       setIsEditing(true);
     }
-  }, [selectedTask, modalMode]);
+  }, [selectedTask, modalMode, defaultStatus]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -85,7 +87,7 @@ export function TaskModal() {
           description: formData.description || undefined,
           status: formData.status,
           priority: formData.priority,
-          due_date: formData.due_date || undefined,
+          due_date: formData.due_date ? `${formData.due_date}T00:00:00Z` : undefined,
         };
         await updateTask(selectedTask.id, updates);
       } else {
@@ -95,7 +97,7 @@ export function TaskModal() {
           description: formData.description || undefined,
           status: formData.status,
           priority: formData.priority,
-          due_date: formData.due_date || undefined,
+          due_date: formData.due_date ? `${formData.due_date}T00:00:00Z` : undefined,
         };
         await createTask(newTask);
       }
