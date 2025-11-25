@@ -14,11 +14,14 @@ export const authService = {
       credentials
     );
 
+    // Calculate expires_at from expires_in (seconds from now)
+    const expiresAt = Math.floor(Date.now() / 1000) + response.expires_in;
+
     // Store tokens and user
     apiClient.storeTokens(
-      response.tokens.access_token,
-      response.tokens.refresh_token,
-      response.tokens.expires_at
+      response.access_token,
+      response.refresh_token,
+      expiresAt
     );
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.user));
 
@@ -31,11 +34,14 @@ export const authService = {
       credentials
     );
 
+    // Calculate expires_at from expires_in (seconds from now)
+    const expiresAt = Math.floor(Date.now() / 1000) + response.expires_in;
+
     // Store tokens and user
     apiClient.storeTokens(
-      response.tokens.access_token,
-      response.tokens.refresh_token,
-      response.tokens.expires_at
+      response.access_token,
+      response.refresh_token,
+      expiresAt
     );
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.user));
 
@@ -43,14 +49,19 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
-    try {
-      await apiClient.post(API_CONFIG.AUTH.LOGOUT);
-    } catch {
-      // Continue with logout even if API call fails
-    } finally {
-      apiClient.removeTokens();
+  try {
+    const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    if (refreshToken) {
+      await apiClient.post(API_CONFIG.AUTH.LOGOUT, {
+        refresh_token: refreshToken,  // Send refresh token in body
+      });
     }
-  },
+  } catch {
+    // Continue with logout even if API call fails
+  } finally {
+    apiClient.removeTokens();
+  }
+},
 
   async verifyToken(): Promise<User | null> {
     try {
@@ -60,6 +71,39 @@ export const authService = {
       return null;
     }
   },
+
+  async refreshToken(): Promise<AuthResponse> {
+  const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+  const user = this.getStoredUser();
+  
+  if (!refreshToken || !user?.email) {
+    throw new Error('No refresh token or email available');
+  }
+
+  const response = await apiClient.post<AuthResponse>(
+    API_CONFIG.AUTH.REFRESH,
+    {
+      email: user.email,
+      refresh_token: refreshToken,
+    }
+  );
+
+  // Calculate expires_at from expires_in
+  const expiresAt = Math.floor(Date.now() / 1000) + response.expires_in;
+
+  // Store new tokens
+  apiClient.storeTokens(
+    response.access_token,
+    response.refresh_token,
+    expiresAt
+  );
+  
+  if (response.user) {
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.user));
+  }
+
+  return response;
+},
 
   getStoredUser(): User | null {
     if (typeof window === 'undefined') return null;

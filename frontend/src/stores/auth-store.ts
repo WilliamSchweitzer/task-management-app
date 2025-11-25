@@ -1,16 +1,13 @@
-'use client';
-
 import { create } from 'zustand';
-import { User, LoginCredentials, SignupCredentials } from '@/types';
 import { authService } from '@/services/auth-service';
+import type { User, LoginCredentials, SignupCredentials } from '@/types';
 
 interface AuthState {
   user: User | null;
-  isLoading: boolean;
   isAuthenticated: boolean;
+  isCheckingAuth: boolean; // For initial auth check
+  isLoading: boolean; // For login/signup actions
   error: string | null;
-  
-  // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
   signup: (credentials: SignupCredentials) => Promise<void>;
   logout: () => Promise<void>;
@@ -18,10 +15,11 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  isLoading: true,
   isAuthenticated: false,
+  isCheckingAuth: true, // Start as true for initial check
+  isLoading: false, // Start as false for form actions
   error: null,
 
   login: async (credentials: LoginCredentials) => {
@@ -65,64 +63,57 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    set({ isLoading: true });
     try {
       await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
     } finally {
       set({
         user: null,
         isAuthenticated: false,
-        isLoading: false,
         error: null,
       });
     }
   },
 
-  checkAuth: async () => {
-    // Don't check if already loading
-    if (get().isLoading && get().user !== null) return;
-    
-    set({ isLoading: true });
-    
-    // First check if we have stored user
-    const storedUser = authService.getStoredUser();
-    const hasToken = authService.isAuthenticated();
-    
-    if (!hasToken || !storedUser) {
-      set({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-      });
-      return;
-    }
+checkAuth: async () => {
+  set({ isCheckingAuth: true });
+  
+  const storedUser = authService.getStoredUser();
+  const hasToken = authService.isAuthenticated();
+  
+  if (!hasToken || !storedUser) {
+    set({
+      user: null,
+      isAuthenticated: false,
+      isCheckingAuth: false,
+    });
+    return;
+  }
 
-    // Verify token with server
-    try {
-      const user = await authService.verifyToken();
-      if (user) {
-        set({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } else {
-        set({
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-      }
-    } catch {
-      // Token verification failed, but keep user logged in if we have stored data
-      // This allows offline functionality
-      set({
-        user: storedUser,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    }
-  },
+  // Add a timeout - if verification takes > 5 seconds, just trust local storage
+  const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000));
+  
+  try {
+    await Promise.race([
+      authService.verifyToken(),
+      timeoutPromise
+    ]);
+    
+    set({
+      user: storedUser,
+      isAuthenticated: true,
+      isCheckingAuth: false,
+    });
+  } catch (error) {
+    console.error('Auth verification error:', error);
+    set({
+      user: storedUser,
+      isAuthenticated: true,
+      isCheckingAuth: false,
+    });
+  }
+},
 
   clearError: () => {
     set({ error: null });
