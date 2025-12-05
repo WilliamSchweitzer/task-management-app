@@ -38,4 +38,29 @@ curl -s -X POST $KONG_ADMIN_URL/services/task-service/routes \
   --data "paths[]=/api/tasks" \
   --data "strip_path=false"
 
+# Add Cors plugin
+echo "Adding CORS plugin to services..."
+
+EXISTING_CORS=$(curl -s $KONG_ADMIN_URL/plugins | jq -r '.data[] | select(.name=="cors") | .id')
+if [ -n "$EXISTING_CORS" ]; then
+  echo "Removing existing CORS plugin..."
+  curl -s -X DELETE $KONG_ADMIN_URL/plugins/$EXISTING_CORS
+fi
+
+CORS_ORIGINS=${CORS_ORIGINS:-'["http://localhost:3000", "https://task-management.wschweitzer.com"]'}
+
+curl -s -X POST $KONG_ADMIN_URL/plugins \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"name\": \"cors\",
+    \"config\": {
+      \"origins\": $CORS_ORIGINS,
+      \"methods\": [\"GET\", \"POST\", \"PUT\", \"DELETE\", \"PATCH\", \"OPTIONS\"],
+      \"headers\": [\"Accept\", \"Authorization\", \"Content-Type\"],
+      \"credentials\": true,
+      \"max_age\": 3600,
+      \"preflight_continue\": false
+    }
+  }" | jq . 2>/dev/null || echo ""
+
 echo "✅ Kong routes configured!"
