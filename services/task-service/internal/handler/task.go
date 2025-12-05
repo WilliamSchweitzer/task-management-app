@@ -84,7 +84,7 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(`{"message":"Task created successfully!"}`))
+	json.NewEncoder(w).Encode(task)
 }
 
 func ListTasks(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +178,7 @@ func UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get task ID from URL
-	taskIDStr := chi.URLParam(r, "id")
+	taskIDStr := chi.URLParam(r, "taskID")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
@@ -228,7 +228,7 @@ func UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 func DeleteTask(w http.ResponseWriter, r *http.Request) {
 	// Get task ID from URL
-	taskIDStr := chi.URLParam(r, "id")
+	taskIDStr := chi.URLParam(r, "taskID")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
@@ -252,7 +252,7 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 
 func CompleteTask(w http.ResponseWriter, r *http.Request) {
 	// Get task ID from URL
-	taskIDStr := chi.URLParam(r, "id")
+	taskIDStr := chi.URLParam(r, "taskID")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)

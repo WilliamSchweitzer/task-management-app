@@ -178,7 +178,7 @@ export function TaskModal() {
           </div>
 
           <Input
-            label="Due Date"
+            label="Due Date (optional)"
             type="date"
             value={formData.due_date}
             onChange={(e) =>
