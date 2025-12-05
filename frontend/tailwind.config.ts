@@ -9,6 +9,9 @@ const config: Config = {
   darkMode: 'class',
   theme: {
     extend: {
+      screens: {
+        'xs': '390px', // Custom breakpoint for tiny screens
+      },
       colors: {
         // Custom brand colors
         brand: {
