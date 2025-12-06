@@ -10,7 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/williamschweitzer/task-management-app/services/task-service/internal/database"
 	"github.com/williamschweitzer/task-management-app/services/task-service/internal/model"
+	"github.com/williamschweitzer/task-management-app/services/task-service/internal/utils"
 )
+
+// TODO: Add authorization for task endpoints based on UserID so each user has their own tasks
 
 type CreateTaskRequest struct {
 	Title       string     `json:"title"`
@@ -43,23 +46,9 @@ type GetTaskResponse struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-func ListTasks(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"message":"List tasks endpoint - to be implemented"}`))
-}
-
 func CreateTask(w http.ResponseWriter, r *http.Request) {
-	// Check Kong set the header (JWT Verified by Kong -> auth-service)
-	userIDStr := r.Header.Get("X-User-Id")
-	if userIDStr == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	// Validate UUID
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
+	userID := r.Context().Value(utils.UserIDKey).(uuid.UUID)
+	if userID.String() == "" {
 		http.Error(w, "Invalid User ID", http.StatusBadRequest)
 		return
 	}
@@ -95,7 +84,48 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(`{"message":"Task created successfully!"}`))
+	json.NewEncoder(w).Encode(task)
+}
+
+func ListTasks(w http.ResponseWriter, r *http.Request) {
+	// Get authenticated user ID from context
+	userID := r.Context().Value(utils.UserIDKey).(uuid.UUID)
+
+	// Fetch Tasks for THIS USER from DB
+	tasks, err := database.GetTasksByUserID(userID)
+	if err != nil {
+		if err.Error() == "no tasks found for user" {
+			// Return empty array for no tasks (not an error)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode([]GetTaskResponse{})
+			return
+		}
+		http.Error(w, "Failed to fetch tasks", http.StatusInternalServerError)
+		return
+	}
+
+	// Create response
+	resp := make([]GetTaskResponse, len(tasks))
+	for i, task := range tasks {
+		resp[i] = GetTaskResponse{
+			ID:          task.ID,
+			UserID:      task.UserID,
+			Title:       task.Title,
+			Description: task.Description,
+			Status:      task.Status,
+			Priority:    task.Priority,
+			DueDate:     task.DueDate,
+			CompletedAt: task.CompletedAt,
+			CreatedAt:   task.CreatedAt,
+			UpdatedAt:   task.UpdatedAt,
+		}
+	}
+
+	// Return Task data
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
 func GetTask(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +178,7 @@ func UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get task ID from URL
-	taskIDStr := chi.URLParam(r, "id")
+	taskIDStr := chi.URLParam(r, "taskID")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
@@ -198,7 +228,7 @@ func UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 func DeleteTask(w http.ResponseWriter, r *http.Request) {
 	// Get task ID from URL
-	taskIDStr := chi.URLParam(r, "id")
+	taskIDStr := chi.URLParam(r, "taskID")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
@@ -222,7 +252,7 @@ func DeleteTask(w http.ResponseWriter, r *http.Request) {
 
 func CompleteTask(w http.ResponseWriter, r *http.Request) {
 	// Get task ID from URL
-	taskIDStr := chi.URLParam(r, "id")
+	taskIDStr := chi.URLParam(r, "taskID")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)

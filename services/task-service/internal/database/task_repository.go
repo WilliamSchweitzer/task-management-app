@@ -18,6 +18,21 @@ func CreateTask(task model.Task) error {
 	return nil
 }
 
+func GetTasksByUserID(userID uuid.UUID) ([]model.Task, error) {
+	var tasks []model.Task
+
+	result := DB.Where("user_id = ?", userID).Find(&tasks)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	if len(tasks) == 0 {
+		return []model.Task{}, nil // Return empty slice, not error
+	}
+
+	return tasks, nil
+}
+
 func GetTask(taskID uuid.UUID) (*model.Task, error) {
 	var task model.Task
 	if err := DB.First(&task, taskID).Error; err != nil {

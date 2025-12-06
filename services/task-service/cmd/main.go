@@ -13,6 +13,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/williamschweitzer/task-management-app/services/task-service/internal/database"
 	"github.com/williamschweitzer/task-management-app/services/task-service/internal/handler"
+	"github.com/williamschweitzer/task-management-app/services/task-service/internal/utils"
 )
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 	defer database.Close()
 
 	// Get port configuration from environment
-	port := getEnv("TASK_SERVICE_PORT", "8090")
+	port := getEnv("TASK_SERVICE_PORT", "8081")
 
 	// Initialize router
 	r := chi.NewRouter()
@@ -53,8 +54,10 @@ func main() {
 	// Routes
 	r.Get("/health", healthHandler)
 
-	// Task routes (to be implemented)
+	// Task routes
 	r.Route("/tasks", func(r chi.Router) {
+		r.Use(utils.AuthMiddleware(os.Getenv("JWT_SECRET"))) // Require JWT in all Task routes
+
 		r.Get("/", handler.ListTasks)                       // GET /tasks
 		r.Post("/", handler.CreateTask)                     // POST /tasks
 		r.Get("/{taskID}", handler.GetTask)                 // GET /tasks/:id

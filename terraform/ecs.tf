@@ -45,7 +45,7 @@ resource "aws_lb_target_group" "kong" {
   deregistration_delay = 30
 }
 
-# NLB Listener
+# NLB HTTP listener (keep for now, can remove later)
 resource "aws_lb_listener" "kong" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -55,6 +55,23 @@ resource "aws_lb_listener" "kong" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.kong.arn
   }
+}
+
+# New HTTPS listener
+resource "aws_lb_listener" "kong_https" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 443
+  protocol          = "TLS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate.api.arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.kong.arn
+  }
+
+  # Don't create until cert exists
+  depends_on = [aws_acm_certificate.api]
 }
 
 # ECS Task Execution Role
@@ -507,6 +524,10 @@ resource "aws_ecs_task_definition" "task_service" {
         {
           name      = "DB_PASSWORD"
           valueFrom = aws_secretsmanager_secret.db_password.arn
+        },
+        {
+          name      = "JWT_SECRET"
+          valueFrom = aws_secretsmanager_secret.jwt_secret.arn
         }
       ]
 
