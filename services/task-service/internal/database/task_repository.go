@@ -10,8 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateTask(task model.Task) error {
-	if err := DB.Create(&task).Error; err != nil {
+func CreateTask(task *model.Task) error {
+	if task == nil {
+		return fmt.Errorf("task cannot be nil")
+	}
+
+	if err := DB.Create(task).Error; err != nil {
 		return err
 	}
 

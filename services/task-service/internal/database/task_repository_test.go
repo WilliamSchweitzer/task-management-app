@@ -62,7 +62,7 @@ func TestCreateTask(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(taskID))
 	mock.ExpectCommit()
 
-	err := CreateTask(task)
+	err := CreateTask(&task)
 
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())

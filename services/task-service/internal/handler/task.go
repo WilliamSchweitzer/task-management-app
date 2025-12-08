@@ -50,7 +50,7 @@ type GetTaskResponse struct {
 
 func CreateTask(w http.ResponseWriter, r *http.Request) {
 	// Get userID from JWT token
-	userID, err := middleware.GetUserIDFromToken(r, os.Getenv("JWT_SECRET"))
+	userID, err := utils.GetUserIDFromToken(r, os.Getenv("JWT_SECRET"))
 	if err != nil {
 		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
