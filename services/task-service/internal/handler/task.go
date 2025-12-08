@@ -2,7 +2,9 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -47,9 +49,10 @@ type GetTaskResponse struct {
 }
 
 func CreateTask(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(utils.UserIDKey).(uuid.UUID)
-	if userID.String() == "" {
-		http.Error(w, "Invalid User ID", http.StatusBadRequest)
+	// Get userID from JWT token
+	userID, err := middleware.GetUserIDFromToken(r, os.Getenv("JWT_SECRET"))
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -75,16 +78,24 @@ func CreateTask(w http.ResponseWriter, r *http.Request) {
 	// Validate task input
 	if err := task.Validate(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	// Store task in tasks.tasks service.StoreTask
-	if err := database.CreateTask(task); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	// Store task in database - MUST pass pointer (&task)
+	if err := database.CreateTask(&task); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
+	// Log the task ID to verify it's not all zeros
+	log.Printf("Created task with ID: %s", task.ID.String())
+
+	// Return the created task with its ID
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(task)
+	if err := json.NewEncoder(w).Encode(task); err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
 func ListTasks(w http.ResponseWriter, r *http.Request) {
